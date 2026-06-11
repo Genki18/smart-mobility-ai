@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Mobility Cloud App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="hero">
+        <p class="eyebrow">Proyek Cloud Computing</p>
+        <h1>Smart Mobility & Asisten Lalu Lintas AI</h1>
+        <p class="lead">Prototipe cloud-native untuk pengelolaan lalu lintas, wawasan parkir, dan prediksi kemacetan berbasis AI.</p>
+      </section>
+
+      <section class="card">
+        <h2>Prediksi Kemacetan AI</h2>
+        <form id="prediction-form" class="grid">
+          <label>Jumlah kendaraan <input id="vehicle_count" type="number" value="120" min="0" /></label>
+          <label>Suhu (°C) <input id="temperature_c" type="number" value="30" /></label>
+          <label>Hujan (mm) <input id="rain_mm" type="number" value="5" step="0.1" /></label>
+          <label>Jam <input id="hour" type="number" value="17" min="0" max="23" /></label>
+          <button type="submit">Prediksi kemacetan</button>
+        </form>
+        <div id="result" class="result-box">Menunggu hasil prediksi…</div>
+      </section>
+
+      <section class="card">
+        <h3>Fitur Arsitektur Cloud</h3>
+        <ul>
+          <li>Frontend VPC untuk penyediaan web</li>
+          <li>Backend API VPC untuk layanan AI</li>
+          <li>Database VPC untuk catatan lalu lintas</li>
+          <li>Penyimpanan objek / bucket MinIO untuk file dan log</li>
+          <li>Docker + pipeline CI/CD untuk deployment otomatis</li>
+        </ul>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
