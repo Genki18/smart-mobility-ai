@@ -7,16 +7,13 @@ on:
     branches: [main]
 
 jobs:
-  # ── STEP 1: BUILD & TEST ──────────────────────────────────────
   build-test:
     name: Build and Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -28,18 +25,34 @@ jobs:
       - name: Run tests
         run: pytest backend/tests -q
 
-      - name: Build Docker image
+      - name: Build Docker image (smoke test)
         run: docker build -f Dockerfile.backend -t smart-mobility-backend:test .
 
-  # ── STEP 2: PUSH IMAGE KE DOCKER HUB ─────────────────────────
   docker-push:
     name: Push to Docker Hub
     runs-on: ubuntu-latest
     needs: build-test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      # DEBUG: pastikan secret terbaca (tidak print nilai aslinya)
+      - name: Verify Docker secrets exist
+        run: |
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "ERROR: DOCKER_USERNAME is empty!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "ERROR: DOCKER_PASSWORD is empty!"
+            exit 1
+          fi
+          echo "Secrets OK - username length: ${#DOCKER_USERNAME}"
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -47,37 +60,62 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push Backend
+      - name: Build and Push Backend
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.backend
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/smart-mobility-backend:latest
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/smart-mobility-backend:latest
+            ${{ secrets.DOCKER_USERNAME }}/smart-mobility-backend:${{ github.sha }}
 
-      - name: Build and push Frontend
+      - name: Build and Push Frontend
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.frontend
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/smart-mobility-frontend:latest
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/smart-mobility-frontend:latest
+            ${{ secrets.DOCKER_USERNAME }}/smart-mobility-frontend:${{ github.sha }}
 
-  # ── STEP 3: DEPLOY KE EC2 ─────────────────────────────────────
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
     needs: docker-push
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - uses: actions/checkout@v4
+
+      - uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           script: |
             cd ~/smart-mobility-ai
             git pull origin main
             docker compose up -d --build
             docker compose ps
+            set -e
+            echo "=== Navigating to project ==="
+            cd ~/smart-mobility-ai
+
+            echo "=== Pulling latest code ==="
+            git pull origin main
+
+            echo "=== Pulling latest images from Docker Hub ==="
+            docker pull irsa18/smart-mobility-backend:latest
+            docker pull irsa18/smart-mobility-frontend:latest
+
+            echo "=== Restarting containers ==="
+            docker compose up -d --pull always
+
+            echo "=== Container status ==="
+            docker compose ps
+
+            echo "=== Health check ==="
+            sleep 5
+            curl -f http://localhost:8000/health && echo "Backend OK!" || echo "Backend health check failed"
