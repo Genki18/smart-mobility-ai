@@ -14,6 +14,11 @@ services:
       dockerfile: Dockerfile.backend
     ports:
       - "8000:8000"
+    environment:
+      - R2_ENDPOINT_URL=https://7214442e7ee196a4250dc4423a23e2fb.r2.cloudflarestorage.com
+      - R2_ACCESS_KEY_ID=4b11b79193a845bcb5255e68db10ee22
+      - R2_SECRET_ACCESS_KEY=5626a61fb49ef53c55ad81a6236c2263ed3d0c181283f16b8dcf75920140b0a8
+      - R2_BUCKET_NAME=smart-mobility-logs
     networks:
       - frontend-vpc
       - backend-vpc
